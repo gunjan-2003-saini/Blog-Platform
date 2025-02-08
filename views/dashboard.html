@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+</head>
+<body>
+  <h1>Dashboard</h1>
+  <a href="/index.html">Home</a>
+  <form id="postForm">
+    <input type="text" id="title" placeholder="Title" required>
+    <textarea id="content" placeholder="Content" required></textarea>
+    <button type="submit">Create Post</button>
+  </form>
+  <div id="posts"></div>
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login.html';
+    }
+
+    document.getElementById('postForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      const content = document.getElementById('content').value;
+
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify({ title, content })
+      });
+
+      if (response.ok) {
+        loadPosts();
+      } else {
+        alert('Failed to create post');
+      }
+    });
+
+    async function loadPosts() {
+      const response = await fetch('/api/posts');
+      const posts = await response.json();
+      const postsContainer = document.getElementById('posts');
+      postsContainer.innerHTML = posts.map(post => `
+        <div>
+          <h2>${post.title}</h2>
+          <p>${post.content}</p>
+          <button onclick="deletePost('${post._id}')">Delete</button>
+        </div>
+      `).join('');
+    }
+
+    async function deletePost(id) {
+      const response = await fetch(`/api/posts/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-auth-token': token }
+      });
+
+      if (response.ok) {
+        loadPosts();
+      } else {
+        alert('Failed to delete post');
+      }
+    }
+
+    loadPosts();
+  </script>
+</body>
+</html>
