@@ -4,9 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blog Platform</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>Welcome to the Blog Platform</h1>
-  <a href="/login.html">Login</a> | <a href="/register.html">Register</a>
+  <div id="posts"></div>
+  <script>
+    fetch('/api/posts')
+      .then(response => response.json())
+      .then(data => {
+        const postsContainer = document.getElementById('posts');
+        data.forEach(post => {
+          const postElement = document.createElement('div');
+          postElement.innerHTML = `<h2>${post.title}</h2><p>${post.content}</p><small>By ${post.author.username}</small>`;
+          postsContainer.appendChild(postElement);
+        });
+      });
+  </script>
 </body>
 </html>

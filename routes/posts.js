@@ -1,101 +1,64 @@
 const express = require('express');
 const router = express.Router();
-const { check, validationResult } = require('express-validator');
+const Post = require('../models/post');
 const auth = require('../middleware/auth');
-const Post = require('../models/Post');
-const User = require('../models/User');
 
-// Create a post
-router.post('/', [auth, [
-  check('title', 'Title is required').not().isEmpty(),
-  check('content', 'Content is required').not().isEmpty()
-]], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
+// Create Post
+router.post('/', auth, async (req, res) => {
+  const { title, content } = req.body;
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    const newPost = new Post({
-      title: req.body.title,
-      content: req.body.content,
-      author: req.user.id
-    });
-
-    const post = await newPost.save();
-    res.json(post);
+    const newPost = new Post({ title, content, author: req.user.id });
+    await newPost.save();
+    res.status(201).json(newPost);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get all posts
+// Get All Posts with Pagination
 router.get('/', async (req, res) => {
+  const { page = 1, limit = 5 } = req.query;
   try {
-    const posts = await Post.find().sort({ createdAt: -1 });
+    const posts = await Post.find()
+      .populate('author', 'username')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
     res.json(posts);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get post by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (!post) {
-      return res.status(404).json({ msg: 'Post not found' });
-    }
-    res.json(post);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
-
-// Update a post
+// Update Post
 router.put('/:id', auth, async (req, res) => {
+  const { title, content } = req.body;
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) {
-      return res.status(404).json({ msg: 'Post not found' });
-    }
+    if (post.author.toString() !== req.user.id)
+      return res.status(401).json({ message: 'Unauthorized' });
 
-    if (post.author.toString() !== req.user.id) {
-      return res.status(401).json({ msg: 'User not authorized' });
-    }
-
-    post.title = req.body.title || post.title;
-    post.content = req.body.content || post.content;
-
+    post.title = title;
+    post.content = content;
     await post.save();
+
     res.json(post);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Delete a post
+// Delete Post
 router.delete('/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) {
-      return res.status(404).json({ msg: 'Post not found' });
-    }
-
-    if (post.author.toString() !== req.user.id) {
-      return res.status(401).json({ msg: 'User not authorized' });
-    }
+    if (post.author.toString() !== req.user.id)
+      return res.status(401).json({ message: 'Unauthorized' });
 
     await post.remove();
-    res.json({ msg: 'Post removed' });
+    res.json({ message: 'Post deleted' });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
